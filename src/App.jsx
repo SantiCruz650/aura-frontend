@@ -3,7 +3,7 @@ import {
   Send, Bot, User, Sparkles, Code2, Terminal, BookOpen, Loader2,
   Plus, MessageSquare, Trash2, Pencil, FolderCode, GraduationCap,
   PanelLeftClose, PanelLeft, ChevronDown, ChevronRight,
-  Paperclip, Image as ImageIcon, FileText, Download, X,
+  Paperclip, Image as ImageIcon, FileText, Download, X, Eye,
 } from "lucide-react";
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -12,7 +12,7 @@ import {
 
 const API_URL = "https://aura-jwp9.onrender.com/api/run";
 const STORAGE_KEY = "aura-chat-conversations";
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const MAX_FILES = 4;
 const ACCEPTED_TYPES = [
   "image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml",
@@ -35,9 +35,7 @@ function loadConversations() {
 function saveConversations(conversations) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
-  } catch {
-    /* storage full */
-  }
+  } catch { /* */ }
 }
 
 function generateTitle(firstMessage) {
@@ -76,9 +74,7 @@ function fileToDataUrl(file) {
 }
 
 function stripMarkdownFences(code) {
-  const match = code.match(/^```[\w]*\n?([\s\S]*?)```$/);
-  if (match) return match[1].trim();
-  return code.trim();
+  return code.replace(/^```\w*\n?|```$/gm, '').trim();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -104,7 +100,7 @@ function CodeBlock({ code, label, icon }) {
           {icon}{label}
         </div>
         <button onClick={handleCopy} className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors px-2 py-0.5 rounded hover:bg-zinc-700/50">
-          {copied ? "Copiado ✓" : "Copiar"}
+          {copied ? "Copiado \u2713" : "Copiar"}
         </button>
       </div>
       <pre className="p-4 overflow-x-auto text-sm leading-relaxed bg-[#0d1117]">
@@ -129,41 +125,93 @@ function TerminalBlock({ output }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BURBUJA DE RESPUESTA IA (3 SECCIONES)
+// BURBUJA DE RESPUESTA IA — SOLO EXPLICACIÓN FEYNMAN
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function AiMessageBubble({ data }) {
   return (
-    <div className="space-y-3">
-      {/* Explicación Feynman */}
-      <div className="flex items-start gap-2">
-        <BookOpen className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
-        <div>
-          <p className="text-xs font-semibold text-amber-400/80 mb-1.5 uppercase tracking-wider">
-            Explicación Feynman
-          </p>
-          <p className="text-zinc-300 leading-relaxed text-sm whitespace-pre-wrap">{data.explicacion}</p>
-        </div>
+    <div className="flex items-start gap-2">
+      <BookOpen className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+      <div>
+        <p className="text-xs font-semibold text-amber-400/80 mb-1.5 uppercase tracking-wider">
+          Explicaci\u00f3n Feynman
+        </p>
+        <p className="text-zinc-300 leading-relaxed text-sm whitespace-pre-wrap">{data.explicacion}</p>
       </div>
-      <div className="border-t border-zinc-700/40" />
+    </div>
+  );
+}
 
-      {/* Código Final */}
-      <div className="flex items-start gap-2">
-        <Code2 className="w-4 h-4 text-sky-400 mt-0.5 flex-shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-sky-400/80 mb-1.5 uppercase tracking-wider">Código Final</p>
-          <CodeBlock code={data.codigo} label="source" icon={<Code2 className="w-3 h-3" />} />
-        </div>
+// ═══════════════════════════════════════════════════════════════════════════════
+// WORKSPACE — PANEL DERECHO CON PESTAÑAS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function WorkspacePanel({ aiData, activeTab, onTabChange }) {
+  const cleanCode = aiData?.codigo ? stripMarkdownFences(aiData.codigo) : '';
+  const showPreview = cleanCode && cleanCode.includes('<!DOCTYPE html>');
+  const srcDoc = showPreview ? cleanCode : '';
+
+  const tabs = [
+    { id: 'codigo', label: 'C\u00f3digo', icon: Code2 },
+    { id: 'consola', label: 'Consola', icon: Terminal },
+    { id: 'vista-previa', label: 'Vista Previa', icon: Eye },
+  ];
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex border-b border-zinc-800/60 bg-zinc-950/50">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => onTabChange(tab.id)}
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-all border-b-2 ${
+              activeTab === tab.id
+                ? 'text-zinc-100 border-zinc-100'
+                : 'text-zinc-500 hover:text-zinc-300 border-transparent hover:border-zinc-600'
+            }`}
+          >
+            <tab.icon className="w-3.5 h-3.5" />
+            {tab.label}
+          </button>
+        ))}
       </div>
-      <div className="border-t border-zinc-700/40" />
 
-      {/* Salida de Consola */}
-      <div className="flex items-start gap-2">
-        <Terminal className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-green-400/80 mb-1.5 uppercase tracking-wider">Salida de Consola</p>
-          <TerminalBlock output={data.consola} />
-        </div>
+      <div className="flex-1 overflow-y-auto md:p-4 p-3">
+        {activeTab === 'codigo' && (
+          aiData?.codigo ? (
+            <CodeBlock code={aiData.codigo} label="source" icon={<Code2 className="w-3 h-3" />} />
+          ) : (
+            <p className="text-zinc-500 text-sm mt-4">No hay c\u00f3digo disponible.</p>
+          )
+        )}
+
+        {activeTab === 'consola' && (
+          aiData?.consola ? (
+            <TerminalBlock output={aiData.consola} />
+          ) : (
+            <p className="text-zinc-500 text-sm mt-4">No hay salida de consola.</p>
+          )
+        )}
+
+        {activeTab === 'vista-previa' && (
+          showPreview ? (
+            <div className="rounded-lg overflow-hidden border border-zinc-700/50 h-full min-h-[200px] md:min-h-[400px]">
+              <iframe
+                srcDoc={srcDoc}
+                title="Vista Previa AURA"
+                className="w-full h-full bg-white"
+                sandbox="allow-scripts"
+              />
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full min-h-[200px]">
+              <div className="text-center">
+                <Code2 className="w-10 h-10 text-zinc-800 mx-auto mb-2" />
+                <p className="text-sm text-zinc-600">Vista previa no disponible para este lenguaje</p>
+              </div>
+            </div>
+          )
+        )}
       </div>
     </div>
   );
@@ -204,8 +252,6 @@ function ChatAttachmentPreview({ attachment }) {
       </div>
     );
   }
-
-  // PDF
   return (
     <div className="mb-2 flex items-center gap-3 bg-zinc-800/50 border border-zinc-700/40 rounded-xl px-3 py-2.5 max-w-[300px]">
       <div className="w-10 h-10 rounded-lg bg-red-950/40 flex items-center justify-center flex-shrink-0">
@@ -233,14 +279,13 @@ function ChatAttachmentPreview({ attachment }) {
 
 function InputFilePreview({ files, onRemove }) {
   if (files.length === 0) return null;
-
   return (
     <div className="flex gap-2 pb-2 overflow-x-auto">
       {files.map((f) => (
         <div key={f.id} className="relative group flex-shrink-0">
           {f.type === "image" ? (
             <div className="w-20 h-20 rounded-lg overflow-hidden border border-zinc-700/50 relative">
-              <img src={f.dataUrl} alt={`Vista previa de ${f.name}`} className="w-full h-full object-cover" />
+              <img src={f.dataUrl} alt={f.name} className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <span className="text-[9px] text-white px-1 truncate max-w-full">{f.name}</span>
               </div>
@@ -269,9 +314,9 @@ function InputFilePreview({ files, onRemove }) {
 
 function WelcomeScreen({ onSuggestionClick }) {
   const suggestions = [
-    "Explícame cómo funciona async/await en JavaScript",
-    "Crea una función de ordenamiento quicksort en Python",
-    "¿Qué es un closure en JavaScript y un ejemplo?",
+    "Explicame como funciona async/await en JavaScript",
+    "Crea una funcion de ordenamiento quicksort en Python",
+    "Que es un closure en JavaScript y un ejemplo?",
     "Genera un componente React de un contador",
   ];
 
@@ -282,9 +327,9 @@ function WelcomeScreen({ onSuggestionClick }) {
       </div>
       <h1 className="text-2xl font-semibold text-zinc-100 mb-2">Aura Chat</h1>
       <p className="text-zinc-500 text-sm mb-8 max-w-md">
-        Tu asistente de código con IA. Pregunta cualquier duda de programación y recibe una explicación Feynman, código funcional y su salida.
+        Tu asistente de codigo con IA. Pregunta cualquier duda de programacion y recibe una explicacion Feynman, codigo funcional y su salida.
       </p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg">
+      <div className="grid grid-cols-1 gap-3 w-full max-w-sm">
         {suggestions.map((s, i) => (
           <button
             key={i}
@@ -300,7 +345,7 @@ function WelcomeScreen({ onSuggestionClick }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ITEM DE CONVERSACIÓN EN SIDEBAR
+// ITEM DE CONVERSACI\u00d3N EN SIDEBAR
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function ConversationItem({ conversation, isActive, onSelect, onDelete, onRename, onChangeType }) {
@@ -376,7 +421,7 @@ function ConversationItem({ conversation, isActive, onSelect, onDelete, onRename
               className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-700/50 transition-colors"
             >
               {conversation.type === "codigo" ? <GraduationCap className="w-3 h-3" /> : <FolderCode className="w-3 h-3" />}
-              Mover a {conversation.type === "codigo" ? "Estudio" : "Código"}
+              Mover a {conversation.type === "codigo" ? "Estudio" : "C\u00f3digo"}
             </button>
             <div className="border-t border-zinc-700/40 my-1" />
             <button
@@ -409,7 +454,6 @@ function Sidebar({
 
   return (
     <>
-      {/* Mobile overlay */}
       {isOpen && <div className="fixed inset-0 bg-black/60 z-30 md:hidden" onClick={onClose} />}
 
       <aside
@@ -417,7 +461,6 @@ function Sidebar({
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0 md:hidden"
         }`}
       >
-        {/* Brand */}
         <div className="px-4 py-4 border-b border-zinc-800/60">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-zinc-700 to-zinc-800 flex items-center justify-center shadow-lg">
@@ -430,18 +473,16 @@ function Sidebar({
           </div>
         </div>
 
-        {/* Nueva conversación */}
         <div className="px-3 pt-3 pb-2">
           <button
             onClick={onNewConversation}
             className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-zinc-800 hover:bg-zinc-700/80 border border-zinc-700/50 hover:border-zinc-600/50 rounded-xl text-xs font-medium text-zinc-300 transition-all duration-200"
           >
             <Plus className="w-4 h-4" />
-            Nueva conversación
+            Nueva conversacion
           </button>
         </div>
 
-        {/* Lista de conversaciones */}
         <div className="flex-1 overflow-y-auto px-3 py-2 space-y-4">
           {codeConvs.length > 0 && (
             <div>
@@ -450,7 +491,7 @@ function Sidebar({
                 className="flex items-center gap-2 px-2 py-1.5 text-[11px] font-semibold text-zinc-500 uppercase tracking-wider hover:text-zinc-400 transition-colors w-full"
               >
                 <FolderCode className="w-3.5 h-3.5" />
-                <span className="flex-1 text-left">Proyectos de Código</span>
+                <span className="flex-1 text-left">Proyectos de Codigo</span>
                 {codeOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
               </button>
               {codeOpen && (
@@ -508,9 +549,8 @@ function Sidebar({
           )}
         </div>
 
-        {/* Footer */}
         <div className="px-4 py-3 border-t border-zinc-800/60">
-          <p className="text-[10px] text-zinc-700 text-center">Aura v0.4 — Guardado local</p>
+          <p className="text-[10px] text-zinc-700 text-center">Aura v0.4 -- Guardado local</p>
         </div>
       </aside>
     </>
@@ -529,6 +569,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [pendingFiles, setPendingFiles] = useState([]);
+  const [activeTab, setActiveTab] = useState("codigo");
 
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
@@ -549,10 +590,15 @@ export default function App() {
     if (hydrated) saveConversations(conversations);
   }, [conversations, hydrated]);
 
-  // ─── Conversación activa ────────────────────────────────────────────────
+  // ─── Conversacion activa ────────────────────────────────────────────────
 
   const activeConv = conversations.find((c) => c.id === activeConvId) || null;
   const messages = activeConv?.messages || [];
+
+  // ─── Datos para el workspace (ultimo mensaje IA) ────────────────────────
+
+  const lastAiMessage = [...messages].reverse().find((m) => m.role === "assistant" && m.aiData);
+  const latestAiData = lastAiMessage?.aiData || null;
 
   // ─── Scroll al fondo ────────────────────────────────────────────────────
 
@@ -593,7 +639,7 @@ export default function App() {
           size: file.size,
           dataUrl,
         });
-      } catch { /* skip */ }
+      } catch { /* */ }
     }
 
     setPendingFiles((prev) => [...prev, ...newFiles].slice(0, MAX_FILES));
@@ -604,12 +650,12 @@ export default function App() {
     setPendingFiles((prev) => prev.filter((f) => f.id !== id));
   }, []);
 
-  // ─── Gestión de conversaciones ──────────────────────────────────────────
+  // ─── Gesti\u00f3n de conversaciones ──────────────────────────────────────────
 
   const createNewConversation = useCallback(() => {
     const newConv = {
       id: crypto.randomUUID(),
-      title: "Nueva conversación",
+      title: "Nueva conversacion",
       type: "codigo",
       messages: [],
       createdAt: new Date().toISOString(),
@@ -657,12 +703,11 @@ export default function App() {
     const hasFiles = pendingFiles.length > 0;
     if ((!trimmed && !hasFiles) || isLoading) return;
 
-    // Crear conversación si no hay una activa
     let convId = activeConvId;
     if (!convId) {
       const newConv = {
         id: crypto.randomUUID(),
-        title: generateTitle(trimmed || (hasFiles ? pendingFiles[0].name : "Nueva conversación")),
+        title: generateTitle(trimmed || (hasFiles ? pendingFiles[0].name : "Nueva conversacion")),
         type: "codigo",
         messages: [],
         createdAt: new Date().toISOString(),
@@ -677,21 +722,19 @@ export default function App() {
     const userMessage = {
       id: crypto.randomUUID(),
       role: "user",
-      content: trimmed || (hasFiles ? `Adjuntó ${currentFiles.length} archivo(s)` : ""),
+      content: trimmed || (hasFiles ? `Adjunto ${currentFiles.length} archivo(s)` : ""),
       attachments: currentFiles.length > 0 ? currentFiles : undefined,
       timestamp: new Date().toISOString(),
     };
 
-    // Construir prompt para la API incluyendo contexto de archivos
     let apiPrompt = trimmed;
     if (currentFiles.length > 0) {
       const fileNames = currentFiles.map((f) => `${f.name} (${f.type})`).join(", ");
       apiPrompt = trimmed
-        ? `${trimmed}\n\n[El usuario adjuntó los siguientes archivos: ${fileNames}]`
-        : `[El usuario adjuntó los siguientes archivos: ${fileNames}]`;
+        ? `${trimmed}\n\n[El usuario adjunto los siguientes archivos: ${fileNames}]`
+        : `[El usuario adjunto los siguientes archivos: ${fileNames}]`;
     }
 
-    // Agregar mensaje de usuario
     setConversations((prev) =>
       prev.map((c) => {
         if (c.id !== convId) return c;
@@ -699,7 +742,7 @@ export default function App() {
         return {
           ...c,
           messages: [...c.messages, userMessage],
-          title: isFirst ? generateTitle(trimmed || currentFiles[0]?.name || "Nueva conversación") : c.title,
+          title: isFirst ? generateTitle(trimmed || currentFiles[0]?.name || "Nueva conversacion") : c.title,
           updatedAt: new Date().toISOString(),
         };
       })
@@ -796,7 +839,7 @@ export default function App() {
         onClose={() => setSidebarOpen(false)}
       />
 
-      {/* ─── Área Principal ─── */}
+      {/* ─── Area Principal ─── */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <header className="flex items-center gap-3 px-4 sm:px-6 py-3 border-b border-zinc-800/60 bg-zinc-950/80 backdrop-blur-sm">
@@ -827,7 +870,7 @@ export default function App() {
                     activeConv.type === "codigo" ? "bg-sky-950/40 text-sky-400" : "bg-amber-950/40 text-amber-400"
                   }`}>
                     {activeConv.type === "codigo" ? <FolderCode className="w-2.5 h-2.5" /> : <GraduationCap className="w-2.5 h-2.5" />}
-                    {activeConv.type === "codigo" ? "Código" : "Estudio"}
+                    {activeConv.type === "codigo" ? "Codigo" : "Estudio"}
                   </span>
                 )}
                 <p className="text-[11px] text-zinc-500">AI Code Assistant</p>
@@ -851,135 +894,158 @@ export default function App() {
           )}
         </header>
 
-        {/* Área de Chat */}
-        <main className="flex-1 overflow-y-auto">
-          {!hasMessages && !isLoading ? (
-            <WelcomeScreen onSuggestionClick={sendMessage} />
-          ) : (
-            <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                >
-                  {msg.role === "assistant" && (
-                    <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Bot className="w-4 h-4 text-zinc-400" />
-                    </div>
-                  )}
+        {/* ─── Split Pane ─── */}
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+          {/* ─── Columna Izquierda: Chat ─── */}
+          <div className="flex-1 md:w-[40%] md:max-w-[40%] flex flex-col overflow-hidden min-h-0">
+            <main className="flex-1 overflow-y-auto">
+              {!hasMessages && !isLoading ? (
+                <WelcomeScreen onSuggestionClick={sendMessage} />
+              ) : (
+                <div className="px-4 sm:px-6 py-6 space-y-6">
+                  {messages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                    >
+                      {msg.role === "assistant" && (
+                        <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Bot className="w-4 h-4 text-zinc-400" />
+                        </div>
+                      )}
 
-                  <div
-                    className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3 ${
-                      msg.role === "user"
-                        ? "bg-zinc-700 text-zinc-100 rounded-br-md"
-                        : "bg-zinc-900 border border-zinc-800/60 text-zinc-300 rounded-bl-md"
-                    }`}
-                  >
-                    {/* Adjuntos */}
-                    {msg.attachments && msg.attachments.length > 0 && (
-                      <div className="space-y-2 mb-2">
-                        {msg.attachments.map((att) => (
-                          <ChatAttachmentPreview key={att.id} attachment={att} />
-                        ))}
+                      <div
+                        className={`max-w-[85%] sm:max-w-[90%] rounded-2xl px-4 py-3 ${
+                          msg.role === "user"
+                            ? "bg-zinc-700 text-zinc-100 rounded-br-md"
+                            : "bg-zinc-900 border border-zinc-800/60 text-zinc-300 rounded-bl-md"
+                        }`}
+                      >
+                        {msg.attachments && msg.attachments.length > 0 && (
+                          <div className="space-y-2 mb-2">
+                            {msg.attachments.map((att) => (
+                              <ChatAttachmentPreview key={att.id} attachment={att} />
+                            ))}
+                          </div>
+                        )}
+
+                        {msg.role === "user" ? (
+                          <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                        ) : msg.aiData ? (
+                          <AiMessageBubble data={msg.aiData} />
+                        ) : (
+                          <p className="text-sm leading-relaxed">{msg.content}</p>
+                        )}
+                        <p className={`text-[10px] mt-2 ${msg.role === "user" ? "text-zinc-400" : "text-zinc-600"}`}>
+                          {new Date(msg.timestamp).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+                        </p>
                       </div>
-                    )}
 
-                    {msg.role === "user" ? (
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                    ) : msg.aiData ? (
-                      <AiMessageBubble data={msg.aiData} />
-                    ) : (
-                      <p className="text-sm leading-relaxed">{msg.content}</p>
-                    )}
-                    <p className={`text-[10px] mt-2 ${msg.role === "user" ? "text-zinc-400" : "text-zinc-600"}`}>
-                      {new Date(msg.timestamp).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
-                    </p>
-                  </div>
+                      {msg.role === "user" && (
+                        <div className="w-8 h-8 rounded-lg bg-zinc-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <User className="w-4 h-4 text-zinc-300" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
 
-                  {msg.role === "user" && (
-                    <div className="w-8 h-8 rounded-lg bg-zinc-700 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <User className="w-4 h-4 text-zinc-300" />
+                  {isLoading && (
+                    <div className="flex gap-3 justify-start">
+                      <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Bot className="w-4 h-4 text-zinc-400" />
+                      </div>
+                      <div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl rounded-bl-md">
+                        <TypingIndicator />
+                      </div>
                     </div>
                   )}
-                </div>
-              ))}
 
-              {isLoading && (
-                <div className="flex gap-3 justify-start">
-                  <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Bot className="w-4 h-4 text-zinc-400" />
-                  </div>
-                  <div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl rounded-bl-md">
-                    <TypingIndicator />
-                  </div>
+                  <div ref={messagesEndRef} />
                 </div>
               )}
+            </main>
 
-              <div ref={messagesEndRef} />
+            {/* ─── Input ─── */}
+            <div className="border-t border-zinc-800/60 bg-zinc-950/80 backdrop-blur-sm">
+              <form onSubmit={handleSubmit} className="px-4 sm:px-6 py-4">
+                <InputFilePreview files={pendingFiles} onRemove={removePendingFile} />
+
+                <div className="flex items-end gap-2 bg-zinc-900 border border-zinc-700/50 rounded-2xl px-4 py-3 focus-within:border-zinc-600 transition-colors">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isLoading || pendingFiles.length >= MAX_FILES}
+                    className="flex-shrink-0 w-9 h-9 rounded-xl bg-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Adjuntar archivo (imagen o PDF)"
+                  >
+                    <Paperclip className="w-4 h-4" />
+                  </button>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept={ACCEPTED_TYPES.join(",")}
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+
+                  <textarea
+                    ref={textareaRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={pendingFiles.length > 0 ? "Anade un mensaje sobre los archivos..." : "Escribe tu pregunta de codigo..."}
+                    rows={1}
+                    disabled={isLoading}
+                    className="flex-1 bg-transparent text-sm text-zinc-100 placeholder-zinc-600 resize-none outline-none max-h-40 leading-relaxed disabled:opacity-50"
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={!canSend || isLoading}
+                    className="flex-shrink-0 w-9 h-9 rounded-xl bg-zinc-100 text-zinc-900 flex items-center justify-center hover:bg-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-zinc-100"
+                  >
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  </button>
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <p className="text-[11px] text-zinc-600">
+                    Aura puede cometer errores. Verifica la informacion importante.
+                  </p>
+                  {pendingFiles.length > 0 && (
+                    <p className="text-[11px] text-zinc-600">
+                      {pendingFiles.length}/{MAX_FILES} archivos
+                    </p>
+                  )}
+                </div>
+              </form>
             </div>
-          )}
-        </main>
+          </div>
 
-        {/* Área de Input */}
-        <div className="border-t border-zinc-800/60 bg-zinc-950/80 backdrop-blur-sm">
-          <form onSubmit={handleSubmit} className="max-w-3xl mx-auto px-4 sm:px-6 py-4">
-            {/* Preview de archivos pendientes */}
-            <InputFilePreview files={pendingFiles} onRemove={removePendingFile} />
-
-            <div className="flex items-end gap-2 bg-zinc-900 border border-zinc-700/50 rounded-2xl px-4 py-3 focus-within:border-zinc-600 transition-colors">
-              {/* Botón adjuntar */}
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isLoading || pendingFiles.length >= MAX_FILES}
-                className="flex-shrink-0 w-9 h-9 rounded-xl bg-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                title="Adjuntar archivo (imagen o PDF)"
-              >
-                <Paperclip className="w-4 h-4" />
-              </button>
-
-              {/* Input de archivo oculto */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept={ACCEPTED_TYPES.join(",")}
-                onChange={handleFileSelect}
-                className="hidden"
+          {/* ─── Columna Derecha: Workspace ─── */}
+          <div
+            className="md:w-[60%] md:max-w-[60%] flex flex-col overflow-hidden
+                       border-t md:border-t-0 md:border-l border-zinc-800/60 bg-zinc-900
+                       max-h-[45vh] md:max-h-full"
+          >
+            {latestAiData ? (
+              <WorkspacePanel
+                aiData={latestAiData}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
               />
-
-              {/* Textarea */}
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={pendingFiles.length > 0 ? "Añade un mensaje sobre los archivos..." : "Escribe tu pregunta de código..."}
-                rows={1}
-                disabled={isLoading}
-                className="flex-1 bg-transparent text-sm text-zinc-100 placeholder-zinc-600 resize-none outline-none max-h-40 leading-relaxed disabled:opacity-50"
-              />
-
-              {/* Botón enviar */}
-              <button
-                type="submit"
-                disabled={!canSend || isLoading}
-                className="flex-shrink-0 w-9 h-9 rounded-xl bg-zinc-100 text-zinc-900 flex items-center justify-center hover:bg-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-zinc-100"
-              >
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              </button>
-            </div>
-            <div className="flex items-center justify-between mt-2">
-              <p className="text-[11px] text-zinc-600">
-                Aura puede cometer errores. Verifica la información importante.
-              </p>
-              {pendingFiles.length > 0 && (
-                <p className="text-[11px] text-zinc-600">
-                  {pendingFiles.length}/{MAX_FILES} archivos
-                </p>
-              )}
-            </div>
-          </form>
+            ) : (
+              <div className="flex-1 flex items-center justify-center p-8">
+                <div className="text-center">
+                  <Code2 className="w-12 h-12 text-zinc-800 mx-auto mb-3" />
+                  <p className="text-sm text-zinc-600">
+                    {hasMessages ? "Esperando respuesta..." : "El workspace aparecera aqui"}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
